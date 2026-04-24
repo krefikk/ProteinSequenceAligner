@@ -131,9 +131,6 @@
 </div>
 
 <script>
-    // ==========================================
-    // 1. BLOSUM62 MATRIX (JavaScript Version)
-    // ==========================================
     const blosum62_keys = "ARNDCQEGHILKMFPSTWYVBZX";
     const blosum62_matrix = [
         [ 4,-1,-2,-2, 0,-1,-1, 0,-2,-1,-1,-1,-1,-2,-1, 1, 0,-3,-2, 0,-2,-1, 0],
@@ -164,13 +161,10 @@
     function getBlosumScore(aa1, aa2) {
         let i = blosum62_keys.indexOf(aa1);
         let j = blosum62_keys.indexOf(aa2);
-        if (i === -1 || j === -1) return -4; // Bilinmeyen harf cezası
+        if (i === -1 || j === -1) return -4;
         return blosum62_matrix[i][j];
     }
 
-    // ==========================================
-    // 2. FILE UPLOAD & PARSING
-    // ==========================================
     function handleFastaUpload(event, targetId) {
         const file = event.target.files[0];
         if (!file) return;
@@ -213,11 +207,7 @@
         return result.join("\n");
     }
 
-    // ==========================================
-    // 3. DP ALGORITHM ENGINE (JavaScript)
-    // ==========================================
     async function runAlignment() {
-        // Girdileri Al
         const seqA_raw = document.getElementById('seqA').value.trim().replace(/\s+/g, '').toUpperCase();
         const seqB_raw = document.getElementById('seqB').value.trim().replace(/\s+/g, '').toUpperCase();
         const mode = document.querySelector('input[name="mode"]:checked').value;
@@ -231,12 +221,10 @@
         let startB = parseBound(document.getElementById('startB').value);
         let endB = parseBound(document.getElementById('endB').value);
 
-        // UI Güncelle (Yükleniyor)
         document.getElementById('runBtn').disabled = true;
         document.getElementById('btnSpinner').style.display = 'block';
         document.getElementById('btnText').innerText = 'Calculating...';
 
-        // İşlemi tarayıcının donmaması için hafif gecikmeli (async) yapıyoruz
         setTimeout(() => {
             try {
                 const s1 = sliceSequence(seqA_raw, startA, endA);
@@ -248,11 +236,9 @@
                 const m = s2.length;
                 const gap = Math.abs(gapPenalty);
 
-                // Matrisleri oluştur
                 let scoreMatrix = Array(n + 1).fill().map(() => Array(m + 1).fill(0));
                 let traceback = Array(n + 1).fill().map(() => Array(m + 1).fill(null));
 
-                // İlklendirme
                 if (mode === 'global') {
                     for (let i = 1; i <= n; i++) { scoreMatrix[i][0] = -i * gap; traceback[i][0] = 'up'; }
                     for (let j = 1; j <= m; j++) { scoreMatrix[0][j] = -j * gap; traceback[0][j] = 'left'; }
@@ -261,7 +247,6 @@
                 let maxLocalScore = 0;
                 let maxLocalPos = { i: 0, j: 0 };
 
-                // DP Matrisini Doldur
                 for (let i = 1; i <= n; i++) {
                     for (let j = 1; j <= m; j++) {
                         let matchScore = getBlosumScore(s1[i-1], s2[j-1]);
@@ -291,7 +276,6 @@
                     }
                 }
 
-                // Geri İzleme (Traceback)
                 let align1 = "", align2 = "", lines = "";
                 let i = mode === 'global' ? n : maxLocalPos.i;
                 let j = mode === 'global' ? m : maxLocalPos.j;
@@ -317,7 +301,6 @@
                     path.push([i, j]);
                 }
 
-                // Sonuçları Tersine Çevir
                 align1 = align1.split('').reverse().join('');
                 align2 = align2.split('').reverse().join('');
                 lines = lines.split('').reverse().join('');
@@ -331,7 +314,6 @@
                 
                 document.getElementById('resultsText').innerText = formatAlignmentText(align1, lines, align2);
 
-                // Matrisi Çiz
                 document.getElementById('plotDiv').style.display = 'block';
                 drawMatrix(scoreMatrix, path, s1, s2);
 
@@ -343,14 +325,13 @@
                 document.getElementById('btnSpinner').style.display = 'none';
                 document.getElementById('btnText').innerText = 'Run Alignment';
             }
-        }, 100); // UI'ın güncellenmesi için ufak gecikme
+        }, 100);
     }
 
     // ==========================================
     // 4. PLOTLY VISUALIZATION
     // ==========================================
     function drawMatrix(matrix, path, seq1, seq2) {
-        // Plotly Z eksenini bekler (i=Y, j=X eksenlerine uygun)
         const trace1 = {
             z: matrix,
             type: 'heatmap',
@@ -380,7 +361,7 @@
             title: {text: 'Dynamic Programming Matrix', font: {size: 16}},
             margin: { t: 50, l: 50, r: 20, b: 50 },
             xaxis: { title: 'Sequence B', constrain: 'domain'},
-            yaxis: { title: 'Sequence A', autorange: 'reversed', scaleanchor: 'x'}, // reversed: (0,0) sol üstte olsun diye
+            yaxis: { title: 'Sequence A', autorange: 'reversed', scaleanchor: 'x'},
             plot_bgcolor: '#f8fafc',
             paper_bgcolor: '#ffffff'
         };
