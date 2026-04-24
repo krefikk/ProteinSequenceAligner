@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protein Alignment Studio</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f3f4f6; --surface: #ffffff; --primary: #4f46e5;
+            --primary-hover: #4338ca; --text: #1f2937; --text-light: #6b7280;
+            --border: #e5e7eb; --error: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        
+        .card { background: var(--surface); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: transform 0.2s; }
+        .card-header { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+        
+        textarea, input[type="text"], input[type="number"] {
+            width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-family: 'Fira Code', monospace;
+            transition: border-color 0.3s, box-shadow 0.3s; resize: vertical;
+        }
+        textarea:focus, input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        
+        .flex-row { display: flex; gap: 1rem; align-items: center; }
+        .bounds-inputs { display: flex; gap: 0.5rem; align-items: center; }
+        .bounds-inputs input { width: 80px; text-align: center; }
+        
+        .btn {
+            background-color: var(--primary); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 6px;
+            font-weight: 600; cursor: pointer; transition: background-color 0.2s, transform 0.1s; display: inline-flex; justify-content: center; align-items: center;
+        }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn:disabled { background-color: var(--text-light); cursor: not-allowed; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 0.25rem 0.75rem; font-size: 0.875rem;}
+        .btn-outline:hover { background-color: rgba(79, 70, 229, 0.1); }
+
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-upload-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
+
+        .results-area { height: 300px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 0.9rem; white-space: pre; margin-bottom: 1rem;}
+        
+        .score-badge { font-size: 1.5rem; font-weight: bold; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px; display: inline-block; margin-bottom: 1rem;}
+        .bounds-info { font-size: 0.9rem; color: var(--text-light); margin-left: 1rem; font-weight: normal; }
+
+        #plotDiv { width: 100%; height: 500px; border: 1px solid var(--border); border-radius: 6px; }
+
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; margin-right: 10px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">Alignment Parameters</div>
+        
+        <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <label style="margin: 0;">Sequence A</label>
+                <div class="file-upload-wrapper">
+                    <button class="btn btn-outline">Upload FASTA</button>
+                    <input type="file" accept=".fasta,.fas,.fa,.txt" onchange="handleFastaUpload(event, 'seqA')">
+                </div>
+            </div>
+            <textarea id="seqA" rows="3" placeholder="Paste sequence A or upload FASTA..."></textarea>
+            <div class="bounds-inputs" style="margin-top: 0.5rem;">
+                <span style="font-size: 0.875rem; color: var(--text-light);">Bounds (Start-End):</span>
+                <input type="number" id="startA" placeholder="1" min="1">
+                <span>-</span>
+                <input type="number" id="endA" placeholder="End" min="1">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <label style="margin: 0;">Sequence B</label>
+                <div class="file-upload-wrapper">
+                    <button class="btn btn-outline">Upload FASTA</button>
+                    <input type="file" accept=".fasta,.fas,.fa,.txt" onchange="handleFastaUpload(event, 'seqB')">
+                </div>
+            </div>
+            <textarea id="seqB" rows="3" placeholder="Paste sequence B or upload FASTA..."></textarea>
+            <div class="bounds-inputs" style="margin-top: 0.5rem;">
+                <span style="font-size: 0.875rem; color: var(--text-light);">Bounds (Start-End):</span>
+                <input type="number" id="startB" placeholder="1" min="1">
+                <span>-</span>
+                <input type="number" id="endB" placeholder="End" min="1">
+            </div>
+        </div>
+
+        <div class="flex-row" style="margin-bottom: 1.5rem;">
+            <div style="flex: 1;">
+                <label>Mode</label>
+                <div class="flex-row">
+                    <label style="font-weight: normal;"><input type="radio" name="mode" value="global" checked> Global</label>
+                    <label style="font-weight: normal;"><input type="radio" name="mode" value="local"> Local</label>
+                </div>
+            </div>
+            <div style="flex: 1;">
+                <label>Gap Penalty</label>
+                <input type="number" id="gap" value="10" step="0.1">
+            </div>
+        </div>
+
+        <button id="runBtn" class="btn" style="width: 100%;" onclick="runAlignment()">
+            <div class="spinner" id="btnSpinner"></div>
+            <span id="btnText">Run Alignment</span>
+        </button>
+    </div>
+
+    <div class="card" style="display: flex; flex-direction: column;">
+        <div class="card-header">Results & Visualization</div>
+        <div style="display: flex; align-items: baseline;">
+            <div id="scoreBadge" class="score-badge" style="display: none;">Score: <span id="scoreVal">0</span></div>
+            <div id="boundsInfo" class="bounds-info" style="display: none;"></div>
+        </div>
+        
+        <div class="results-area" id="resultsText">Run the alignment to see results here...</div>
+        
+        <div id="plotDiv" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. BLOSUM62 MATRIX (JavaScript Version)
+    // ==========================================
+    const blosum62_keys = "ARNDCQEGHILKMFPSTWYVBZX";
+    const blosum62_matrix = [
+        [ 4,-1,-2,-2, 0,-1,-1, 0,-2,-1,-1,-1,-1,-2,-1, 1, 0,-3,-2, 0,-2,-1, 0],
+        [-1, 5, 0,-2,-3, 1, 0,-2, 0,-3,-2, 2,-1,-3,-2,-1,-1,-3,-2,-3,-1, 0,-1],
+        [-2, 0, 6, 1,-3, 0, 0, 0, 1,-3,-3, 0,-2,-3,-2, 1, 0,-4,-2,-3, 3, 0,-1],
+        [-2,-2, 1, 6,-3, 0, 2,-1,-1,-3,-4,-1,-3,-3,-1, 0,-1,-4,-3,-3, 4, 1,-1],
+        [ 0,-3,-3,-3, 9,-3,-4,-3,-3,-1,-1,-3,-1,-2,-3,-1,-1,-2,-2,-1,-3,-3,-2],
+        [-1, 1, 0, 0,-3, 5, 2,-2, 0,-3,-2, 1, 0,-3,-1, 0,-1,-2,-1,-2, 0, 3,-1],
+        [-1, 0, 0, 2,-4, 2, 5,-2, 0,-3,-3, 1,-2,-3,-1, 0,-1,-3,-2,-2, 1, 4,-1],
+        [ 0,-2, 0,-1,-3,-2,-2, 6,-2,-4,-4,-2,-3,-3,-2, 0,-2,-2,-3,-3,-1,-2,-1],
+        [-2, 0, 1,-1,-3, 0, 0,-2, 8,-3,-3,-1,-2,-1,-2,-1,-2,-2, 2,-3, 0, 0,-1],
+        [-1,-3,-3,-3,-1,-3,-3,-4,-3, 4, 2,-3, 1, 0,-3,-2,-1,-3,-1, 3,-3,-3,-1],
+        [-1,-2,-3,-4,-1,-2,-3,-4,-3, 2, 4,-2, 2, 0,-3,-2,-1,-2,-1, 1,-4,-3,-1],
+        [-1, 2, 0,-1,-3, 1, 1,-2,-1,-3,-2, 5,-1,-3,-1, 0,-1,-3,-2,-2, 0, 1,-1],
+        [-1,-1,-2,-3,-1, 0,-2,-3,-2, 1, 2,-1, 5, 0,-2,-1,-1,-1,-1, 1,-3,-1,-1],
+        [-2,-3,-3,-3,-2,-3,-3,-3,-1, 0, 0,-3, 0, 6,-4,-2,-2, 1, 3,-1,-3,-3,-1],
+        [-1,-2,-2,-1,-3,-1,-1,-2,-2,-3,-3,-1,-2,-4, 7,-1,-1,-4,-3,-2,-2,-1,-2],
+        [ 1,-1, 1, 0,-1, 0, 0, 0,-1,-2,-2, 0,-1,-2,-1, 4, 1,-3,-2,-2, 0, 0, 0],
+        [ 0,-1, 0,-1,-1,-1,-1,-2,-2,-1,-1,-1,-1,-2,-1, 1, 5,-2,-2, 0,-1,-1, 0],
+        [-3,-3,-4,-4,-2,-2,-3,-2,-2,-3,-2,-3,-1, 1,-4,-3,-2,11, 2,-3,-4,-3,-2],
+        [-2,-2,-2,-3,-2,-1,-2,-3, 2,-1,-1,-2,-1, 3,-3,-2,-2, 2, 7,-1,-3,-2,-1],
+        [ 0,-3,-3,-3,-1,-2,-2,-3,-3, 3, 1,-2, 1,-1,-2,-2, 0,-3,-1, 4,-3,-2,-1],
+        [-2,-1, 3, 4,-3, 0, 1,-1, 0,-3,-4, 0,-3,-3,-2, 0,-1,-4,-3,-3, 4, 1,-1],
+        [-1, 0, 0, 1,-3, 3, 4,-2, 0,-3,-3, 1,-1,-3,-1, 0,-1,-3,-2,-2, 1, 4,-1],
+        [ 0,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-2, 0, 0,-2,-1,-1,-1,-1,-1]
+    ];
+
+    function getBlosumScore(aa1, aa2) {
+        let i = blosum62_keys.indexOf(aa1);
+        let j = blosum62_keys.indexOf(aa2);
+        if (i === -1 || j === -1) return -4; // Bilinmeyen harf cezası
+        return blosum62_matrix[i][j];
+    }
+
+    // ==========================================
+    // 2. FILE UPLOAD & PARSING
+    // ==========================================
+    function handleFastaUpload(event, targetId) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            let lines = content.split('\n');
+            let sequence = '';
+            for (let line of lines) {
+                line = line.trim();
+                if (!line || line.startsWith('>')) continue;
+                sequence += line;
+            }
+            document.getElementById(targetId).value = sequence.toUpperCase();
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function parseBound(val) {
+        val = val.trim();
+        return val === "" ? null : parseInt(val);
+    }
+
+    function sliceSequence(seq, start, end) {
+        let idx_start = start ? Math.max(0, start - 1) : 0;
+        let idx_end = end ? end : seq.length;
+        return seq.substring(idx_start, idx_end);
+    }
+
+    function formatAlignmentText(seq1, lines, seq2, chunkSize = 80) {
+        let result = [];
+        for (let i = 0; i < seq1.length; i += chunkSize) {
+            result.push(seq1.substring(i, i + chunkSize));
+            result.push(lines.substring(i, i + chunkSize));
+            result.push(seq2.substring(i, i + chunkSize));
+            result.push("-".repeat(chunkSize));
+        }
+        return result.join("\n");
+    }
+
+    // ==========================================
+    // 3. DP ALGORITHM ENGINE (JavaScript)
+    // ==========================================
+    async function runAlignment() {
+        // Girdileri Al
+        const seqA_raw = document.getElementById('seqA').value.trim().replace(/\s+/g, '').toUpperCase();
+        const seqB_raw = document.getElementById('seqB').value.trim().replace(/\s+/g, '').toUpperCase();
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        const gapPenalty = parseFloat(document.getElementById('gap').value);
+
+        if (!seqA_raw || !seqB_raw) { alert("Please provide both sequences!"); return; }
+        if (isNaN(gapPenalty)) { alert("Gap penalty must be a valid number."); return; }
+
+        let startA = parseBound(document.getElementById('startA').value);
+        let endA = parseBound(document.getElementById('endA').value);
+        let startB = parseBound(document.getElementById('startB').value);
+        let endB = parseBound(document.getElementById('endB').value);
+
+        // UI Güncelle (Yükleniyor)
+        document.getElementById('runBtn').disabled = true;
+        document.getElementById('btnSpinner').style.display = 'block';
+        document.getElementById('btnText').innerText = 'Calculating...';
+
+        // İşlemi tarayıcının donmaması için hafif gecikmeli (async) yapıyoruz
+        setTimeout(() => {
+            try {
+                const s1 = sliceSequence(seqA_raw, startA, endA);
+                const s2 = sliceSequence(seqB_raw, startB, endB);
+                
+                if(!s1 || !s2) throw new Error("Bounds resulted in an empty sequence.");
+
+                const n = s1.length;
+                const m = s2.length;
+                const gap = Math.abs(gapPenalty);
+
+                // Matrisleri oluştur
+                let scoreMatrix = Array(n + 1).fill().map(() => Array(m + 1).fill(0));
+                let traceback = Array(n + 1).fill().map(() => Array(m + 1).fill(null));
+
+                // İlklendirme
+                if (mode === 'global') {
+                    for (let i = 1; i <= n; i++) { scoreMatrix[i][0] = -i * gap; traceback[i][0] = 'up'; }
+                    for (let j = 1; j <= m; j++) { scoreMatrix[0][j] = -j * gap; traceback[0][j] = 'left'; }
+                }
+
+                let maxLocalScore = 0;
+                let maxLocalPos = { i: 0, j: 0 };
+
+                // DP Matrisini Doldur
+                for (let i = 1; i <= n; i++) {
+                    for (let j = 1; j <= m; j++) {
+                        let matchScore = getBlosumScore(s1[i-1], s2[j-1]);
+                        let diag = scoreMatrix[i-1][j-1] + matchScore;
+                        let up = scoreMatrix[i-1][j] - gap;
+                        let left = scoreMatrix[i][j-1] - gap;
+
+                        if (mode === 'global') {
+                            let best = Math.max(diag, up, left);
+                            scoreMatrix[i][j] = best;
+                            if (best === diag) traceback[i][j] = 'diag';
+                            else if (best === up) traceback[i][j] = 'up';
+                            else traceback[i][j] = 'left';
+                        } else {
+                            let best = Math.max(0, diag, up, left);
+                            scoreMatrix[i][j] = best;
+                            if (best === 0) traceback[i][j] = 'stop';
+                            else if (best === diag) traceback[i][j] = 'diag';
+                            else if (best === up) traceback[i][j] = 'up';
+                            else traceback[i][j] = 'left';
+
+                            if (best > maxLocalScore) {
+                                maxLocalScore = best;
+                                maxLocalPos = { i: i, j: j };
+                            }
+                        }
+                    }
+                }
+
+                // Geri İzleme (Traceback)
+                let align1 = "", align2 = "", lines = "";
+                let i = mode === 'global' ? n : maxLocalPos.i;
+                let j = mode === 'global' ? m : maxLocalPos.j;
+                let finalScore = mode === 'global' ? scoreMatrix[n][m] : maxLocalScore;
+                let path = [[i, j]];
+
+                while (true) {
+                    if (mode === 'global' && i === 0 && j === 0) break;
+                    if (mode === 'local' && (traceback[i][j] === 'stop' || scoreMatrix[i][j] === 0)) break;
+
+                    let dir = traceback[i][j];
+                    if (dir === 'diag') {
+                        align1 += s1[i-1]; align2 += s2[j-1];
+                        lines += s1[i-1] === s2[j-1] ? "|" : ".";
+                        i--; j--;
+                    } else if (dir === 'up') {
+                        align1 += s1[i-1]; align2 += "-"; lines += " ";
+                        i--;
+                    } else if (dir === 'left') {
+                        align1 += "-"; align2 += s2[j-1]; lines += " ";
+                        j--;
+                    }
+                    path.push([i, j]);
+                }
+
+                // Sonuçları Tersine Çevir
+                align1 = align1.split('').reverse().join('');
+                align2 = align2.split('').reverse().join('');
+                lines = lines.split('').reverse().join('');
+
+                // UI Sonuçlarını Yazdır
+                document.getElementById('scoreBadge').style.display = 'inline-block';
+                document.getElementById('scoreVal').innerText = finalScore;
+                
+                document.getElementById('boundsInfo').style.display = 'inline-block';
+                document.getElementById('boundsInfo').innerText = `Seq A: [${startA||1}:${endA||seqA_raw.length}] | Seq B: [${startB||1}:${endB||seqB_raw.length}]`;
+                
+                document.getElementById('resultsText').innerText = formatAlignmentText(align1, lines, align2);
+
+                // Matrisi Çiz
+                document.getElementById('plotDiv').style.display = 'block';
+                drawMatrix(scoreMatrix, path, s1, s2);
+
+            } catch (error) {
+                alert("Error during alignment: " + error.message);
+            } finally {
+                // UI Sıfırla
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('btnSpinner').style.display = 'none';
+                document.getElementById('btnText').innerText = 'Run Alignment';
+            }
+        }, 100); // UI'ın güncellenmesi için ufak gecikme
+    }
+
+    // ==========================================
+    // 4. PLOTLY VISUALIZATION
+    // ==========================================
+    function drawMatrix(matrix, path, seq1, seq2) {
+        // Plotly Z eksenini bekler (i=Y, j=X eksenlerine uygun)
+        const trace1 = {
+            z: matrix,
+            type: 'heatmap',
+            colorscale: 'RdBu',
+            showscale: true,
+            hoverinfo: 'z'
+        };
+
+        // Geri izleme yolunun koordinatları
+        const pathX = path.map(p => p[1]);
+        const pathY = path.map(p => p[0]);
+
+        const maxLen = Math.max(seq1.length, seq2.length);
+        let lineW = maxLen > 150 ? 1 : 2;
+        let pMode = maxLen > 150 ? 'lines' : 'lines+markers';
+
+        const trace2 = {
+            x: pathX, y: pathY,
+            mode: pMode,
+            line: { color: '#000000', width: lineW },
+            marker: { color: '#000000', size: 4 },
+            name: 'Traceback Path',
+            hoverinfo: 'none'
+        };
+
+        const layout = {
+            title: {text: 'Dynamic Programming Matrix', font: {size: 16}},
+            margin: { t: 50, l: 50, r: 20, b: 50 },
+            xaxis: { title: 'Sequence B', constrain: 'domain'},
+            yaxis: { title: 'Sequence A', autorange: 'reversed', scaleanchor: 'x'}, // reversed: (0,0) sol üstte olsun diye
+            plot_bgcolor: '#f8fafc',
+            paper_bgcolor: '#ffffff'
+        };
+
+        Plotly.newPlot('plotDiv', [trace1, trace2], layout, {responsive: true});
+    }
+</script>
+
+</body>
+</html>
