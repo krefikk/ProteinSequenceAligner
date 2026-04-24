@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-Apache-green.svg)
 
 ProAlign is an interactive educational and analytical bioinformatics tool designed to perform and visualize protein sequence alignments. It utilizes Dynamic Programming to implement both **Global (Needleman-Wunsch)** and **Local (Smith-Waterman)** alignment algorithms using the **BLOSUM62** substitution matrix.
 
