@@ -26,4 +26,4 @@ This repository includes two fully functional versions of the tool:
 ## Web Version
 
 Try the web version directly from your browser without installing anything!
-**[Click here to open the Live Demo](https://krefikk.github.io/ProteinSequenceAligner/)**
+**[Click here to open the webpage](https://krefikk.github.io/ProteinSequenceAligner/)**
